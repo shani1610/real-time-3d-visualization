@@ -1,0 +1,305 @@
+
+<!-- Licensed under a BSD license. See license.html for license -->
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+    <title>Three.js - Custom BufferGeometry</title>
+    <style>
+    html, body {
+        height: 100%;
+        margin: 0;
+    }
+    #c {
+        width: 100%;
+        height: 100%;
+        display: block;
+    }
+      .mode {
+        position: absolute;
+        right: 1em;
+        top: 1em;
+      }
+    </style>
+  </head>
+  <body>
+    <canvas id="c"></canvas>
+    <div class="mode">
+      <a href="?allowvr=true" id="vr">Allow VR</a>
+      <a href="?" id="nonvr">Use Non-VR Mode</a>
+    </div>
+  </body>
+
+  <script async src="https://unpkg.com/es-module-shims@1.3.6/dist/es-module-shims.js"></script>
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "https://unpkg.com/three@0.148.0/build/three.module.js",
+        "three/addons/": "https://unpkg.com/three@0.148.0/examples/jsm/"
+      }
+    }
+  </script>
+
+<script type="module">
+import * as THREE from 'three';
+
+import { FontLoader } from 'three/addons/loaders/FontLoader.js';
+import { TextGeometry } from 'three/addons/geometries/TextGeometry.js';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import {VRButton} from 'three/addons/webxr/VRButton.js';
+
+    function main() {
+        const canvas = document.querySelector('#c');
+        const renderer = new THREE.WebGLRenderer({ canvas });
+
+        window.addEventListener("click", onclick, true);
+
+        //
+        const fov = 70;
+        const aspect = 2;  // the canvas default
+        const near = 0.1;
+        const far = 1000;
+        const camera = new THREE.PerspectiveCamera(fov, aspect, near, far);
+        
+        const params = (new URL(document.location)).searchParams;
+        const allowvr = params.get('allowvr') === 'true';
+        if (allowvr) {
+            renderer.xr.enabled = true;
+            document.body.appendChild(VRButton.createButton(renderer));
+            document.querySelector('#vr').style.display = 'none';
+            
+        } else {
+            // no VR, add some controls
+            const controls = new OrbitControls(camera, canvas);
+            controls.target.set(0, 1.6, -2);
+            controls.update();
+            document.querySelector('#nonvr').style.display = 'none';
+        }
+        /*
+    //var controls = new OrbitControls( camera, renderer.domElement );
+    //controls.listenToKeyEvents( window ); // optional
+    // support vr and non-vr:
+    const params = (new URL(document.location)).searchParams;
+    const allowvr = params.get('allowvr') === 'true';
+    if (allowvr) {
+        renderer.xr.enabled = true;
+        document.body.appendChild(VRButton.createButton(renderer));
+        document.querySelector('#vr').style.display = 'none';
+    } else {
+        // no VR, add some controls
+        const controls = new OrbitControls(camera, canvas);
+        controls.target.set(0, 1.6, -2);
+        controls.update();
+        document.querySelector('#nonvr').style.display = 'none';
+    }
+    */
+/*
+        // controls
+        const controls = new OrbitControls( camera, renderer.domElement );
+        controls.listenToKeyEvents( window ); // optional
+        controls.enableDamping = false; // an animation loop is required when either damping or auto-rotation are enabled
+        controls.dampingFactor = 0.05;
+        controls.screenSpacePanning = false;
+        controls.minDistance = 100;
+        controls.maxDistance = 500;
+        controls.maxPolarAngle = Math.PI / 2;
+        */
+
+        camera.position.set( 0, 0, 200 );
+
+        //controls.update();
+
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color('black');
+
+        {
+            const color = 0xFFFFFF;
+            const intensity = 1;
+            const light = new THREE.DirectionalLight(color, intensity);
+            light.position.set(-1, 2, 4);
+            scene.add(light);
+        }
+        {
+            const color = 0xFFFFFF;
+            const intensity = 1;
+            const light = new THREE.DirectionalLight(color, intensity);
+            light.position.set(1, -2, -4);
+            scene.add(light);
+        }
+
+        const elbow_objects = [];
+        const objects = [];
+        const floor_objects = [];
+        const spread = 15;
+        
+        function createMaterial() {
+            const material = new THREE.MeshPhongMaterial({
+                side: THREE.DoubleSide,
+            });
+
+            const hue = Math.random();
+            const saturation = 1;
+            const luminance = .5;
+            material.color.setHSL(hue, saturation, luminance);
+
+            return material;
+        }
+
+        function addSolidGeometry(x, y, z, geometry, main_mesh, objects_arr) {
+            // for main geomentry the main mesh is the scene
+            const mesh = new THREE.Mesh(geometry, createMaterial());
+            mesh.position.x = x * spread;
+            mesh.position.y = y * spread;
+            mesh.position.z = z * spread;
+            main_mesh.add(mesh);
+            objects_arr.push(mesh);
+            return mesh
+        }
+
+        function addLineGeometry(x, y, z, geometry, floor_objects) {
+            const material = new THREE.LineBasicMaterial({ color: 0x000000 });
+            const mesh = new THREE.LineSegments(geometry, material);
+            mesh.position.x = x * spread;
+            mesh.position.y = y * spread;
+            mesh.position.z = z * spread;
+            scene.add(mesh);
+            floor_objects.push(obj);
+        }
+
+        {
+            // add cross marks on the ground
+            const points = [];
+            points.push( new THREE.Vector3( 0 , 0, -2 ) );
+            points.push( new THREE.Vector3( 0, 0, 2 ) );
+            points.push( new THREE.Vector3( 0 , 0, 0 ) );
+            points.push( new THREE.Vector3( 2, 0, 0 ) );
+            points.push( new THREE.Vector3( -2, 0, 0 ) );
+            points.push( new THREE.Vector3( 0 , 0, 0 ) );
+
+            var geometry = new THREE.BufferGeometry().setFromPoints( points );
+            var x = 0;
+            var z = 0;
+            const spread = 15;
+            var r = 0;
+            const th1 = 100;
+            var counter = 0;
+            for  ( var i = -50 ; i < 50 ; i++ ) { 
+                for ( var j = -50 ; j < 50 ; j++ ) {
+                    var material1 = new THREE.LineBasicMaterial();
+                    x = spread*i;
+                    z = spread*j;
+                    r = Math.sqrt(Math.pow(x, 2) + Math.pow(z, 2));
+                    if (r<th1){
+                        material1.transparent = true;
+                        material1.opacity = 1;
+                    }
+                    else{
+                        material1.transparent = true;
+                        material1.opacity = 1-((r-th1)/100);
+                    }
+                    var line23 = new THREE.Line( geometry, material1 );
+                    line23.position.x = x;
+                    line23.position.z = z;
+                    scene.add(line23);
+                }
+            }
+
+        }
+        // cube 1 (head):
+        addSolidGeometry(0, 5.7, 0, new THREE.BoxGeometry(12, 12, 4), scene, objects);
+        // cube 2 (upper body):
+        addSolidGeometry(0, 4.8, 0, new THREE.BoxGeometry(16, 8, 4), scene, objects);
+        // cube 3 (mid body): 
+        addSolidGeometry(0, 3.8, 0, new THREE.BoxGeometry(16, 16, 4), scene, objects);
+        // cube 4 (mid body):
+        addSolidGeometry(0, 2.8, 0, new THREE.BoxGeometry(16, 8, 4), scene, objects);
+        // cube 5 (upper leg left):
+        addSolidGeometry(-0.5, 2, 0, new THREE.BoxGeometry(4, 8, 4), scene, objects);
+        // cube 6 (upper leg left):
+        addSolidGeometry(0.5, 2, 0, new THREE.BoxGeometry(4, 8, 4), scene, objects);
+        // cube 7 (lower leg left):
+        addSolidGeometry(-0.5, 1, 0, new THREE.BoxGeometry(4, 16, 4), scene, objects);
+        // cube 8 (lower leg right):
+        addSolidGeometry(0.5, 1, 0, new THREE.BoxGeometry(4, 16, 4), scene, objects);
+        // cube 9 (foot left):
+        addSolidGeometry(-0.5, 0, 0, new THREE.BoxGeometry(4, 4, 4), scene, objects);
+        // cube 10 (foot right):
+        addSolidGeometry(0.5, 0, 0, new THREE.BoxGeometry(4, 4, 4), scene, objects);
+        // cube 12 (upper hand right):
+        addSolidGeometry(1, 4.5, 0, new THREE.BoxGeometry(4, 10, 4), scene, objects);
+
+        // cube 11 (upper hand left):
+        const upper_hand_left_mesh = addSolidGeometry(-1, 4.5, 0, new THREE.BoxGeometry(4, 10, 4), scene, elbow_objects);
+        // elbow joint left
+        const elbow_joint_left_mesh = addSolidGeometry(0, -0.5, 0, new THREE.SphereGeometry(2, 2, 2), upper_hand_left_mesh, elbow_objects);     
+        // cube 13 (mid hand left):
+        const mid_hand_left_mesh = addSolidGeometry(0, -0.5, 0, new THREE.BoxGeometry(4, 10, 4), elbow_joint_left_mesh, elbow_objects);
+        // wrist joint left
+        const wrist_joint_mesh = addSolidGeometry(0, -0.5, 0, new THREE.SphereGeometry(2, 2, 2), mid_hand_left_mesh, elbow_objects); 
+        // cube 15 (lower hand left):
+        addSolidGeometry(0, -0.5, 0, new THREE.BoxGeometry(4, 4, 4), wrist_joint_mesh, elbow_objects);
+
+        // cube 14 (mid hand right):
+        addSolidGeometry(1, 3.5, 0, new THREE.BoxGeometry(4, 10, 4), scene, objects); 
+        // cube 16 (lower hand right):
+        addSolidGeometry(1, 2.5, 0, new THREE.BoxGeometry(4, 4, 4), scene, objects);
+
+        {
+            const loader = new FontLoader();
+            // promisify font loading
+            function loadFont(url) {
+                return new Promise((resolve, reject) => {
+                    loader.load(url, resolve, undefined, reject);
+                });
+            }
+
+        }
+
+        function resizeRendererToDisplaySize(renderer) {
+            const canvas = renderer.domElement;
+            const width = canvas.clientWidth;
+            const height = canvas.clientHeight;
+            const needResize = canvas.width !== width || canvas.height !== height;
+            if (needResize) {
+                renderer.setSize(width, height, false);
+            }
+            return needResize;
+        }
+
+        function render(time) {
+            time *= 0.001;
+
+            if (resizeRendererToDisplaySize(renderer)) {
+                const canvas = renderer.domElement;
+                camera.aspect = canvas.clientWidth / canvas.clientHeight;
+                camera.updateProjectionMatrix();
+            }
+
+            elbow_joint_left_mesh.rotation.x = Math.sin(Math.PI/2*time);
+
+            /*
+            elbow_objects.forEach((obj, ndx) => {
+                const speed = .1 + ndx * .05;
+                const rot = time * speed;
+                obj.rotation.y = rot;
+            });
+            */
+            
+
+            // required if controls.enableDamping or controls.autoRotate are set to true
+            //controls.update();
+
+            renderer.render(scene, camera);
+
+            //renderer.setAnimationLoop(render);
+            
+        }
+
+        renderer.setAnimationLoop(render);
+    }
+
+    main();
+</script>
+
+</html>
