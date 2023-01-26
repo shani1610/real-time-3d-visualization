@@ -40,10 +40,40 @@ import * as THREE from 'three';
 import { FontLoader } from 'three/addons/loaders/FontLoader.js';
 import { TextGeometry } from 'three/addons/geometries/TextGeometry.js';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import {GUI} from 'https://threejsfundamentals.org/threejs/../3rdparty/dat.gui.module.js';
+import { TrackballControls } from 'three/addons/controls/TrackballControls.js';
+
 
     function main() {
+
         const canvas = document.querySelector('#c');
         const renderer = new THREE.WebGLRenderer({ canvas });
+        //const view1Elem = document.querySelector('#view1');
+        //const view2Elem = document.querySelector('#view2');
+    
+        class MinMaxGUIHelper {
+            constructor(obj, minProp, maxProp, minDif) {
+            this.obj = obj;
+            this.minProp = minProp;
+            this.maxProp = maxProp;
+            this.minDif = minDif;
+            }
+            get min() {
+            return this.obj[this.minProp];
+            }
+            set min(v) {
+            this.obj[this.minProp] = v;
+            this.obj[this.maxProp] = Math.max(this.obj[this.maxProp], v + this.minDif);
+            }
+            get max() {
+            return this.obj[this.maxProp];
+            }
+            set max(v) {
+            this.obj[this.maxProp] = v;
+            this.min = this.min;  // this will call the min setter
+            }
+        }
+
 
         //
         const fov = 70;
@@ -54,25 +84,61 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 
 
         // controls
-
         const controls = new OrbitControls( camera, renderer.domElement );
-        
         controls.listenToKeyEvents( window ); // optional
-
         controls.enableDamping = false; // an animation loop is required when either damping or auto-rotation are enabled
         controls.dampingFactor = 0.05;
-
         controls.screenSpacePanning = false;
-
         controls.minDistance = 100;
         controls.maxDistance = 500;
         controls.maxPolarAngle = Math.PI / 2;
 
-
+        // camera
         camera.position.set( 0, 0, 200 );
 
+        //camera.position.set( 0, -160, 120 );
+        //camera.up.set( 0, 0, 0 );
+        //camera.lookAt( 0, 160, 120 );
+
+        //gui
+        const gui = new GUI();  
+        const f1 = gui.addFolder('Camera 1 Controls')
+        f1.add(camera, 'fov', 1, 180);
+        const minMaxGUIHelper = new MinMaxGUIHelper(camera, 'near', 'far', 0.1);
+        f1.add(minMaxGUIHelper, 'min', 0.1, 50, 0.1).name('near');
+        f1.add(minMaxGUIHelper, 'max', 0.1, 50, 0.1).name('far');
+        f1.close();
 
         controls.update();
+
+        // add second camera:
+        const left = -90;
+        const right = 90;
+        const top = 60;
+        const bottom = -60;
+
+        const topCamera = new THREE.OrthographicCamera(left,right,top,bottom);
+        topCamera.position.set(0, 450, 0);
+        topCamera.up.set(0,0,-1);
+        topCamera.lookAt(new THREE.Vector3(0,0,0));
+
+        //const controls2 = new OrbitControls(topCamera, renderer.domElement);
+        //controls2.target.set(0, 5, 0);
+        //controls2.update();
+
+        const controls2 = new TrackballControls( topCamera, renderer.domElement );
+        controls2.rotateSpeed = 1.0;
+        controls2.zoomSpeed = 1.2;
+        controls2.panSpeed = 0.8;
+        controls2.keys = [ 'KeyA', 'KeyS', 'KeyD' ];
+
+        const f2 = gui.addFolder('Camera 2 Controls')
+        f2.add(topCamera, 'left', 1, 180);
+        const minMaxGUIHelper2 = new MinMaxGUIHelper(topCamera, 'near', 'far', 0.1);
+        f2.add(minMaxGUIHelper2, 'min', 0.1, 50, 0.1).name('near');
+        f2.add(minMaxGUIHelper2, 'max', 0.1, 50, 0.1).name('far');
+        f2.close();
+        
 
         const scene = new THREE.Scene();
         scene.background = new THREE.Color('black');
@@ -97,6 +163,29 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
         const avg_obj_size = 30; 
 
         function addObject(x, y, z, obj) {
+
+            /*
+            obj.position.x = x * spread;
+            obj.position.y = y * spread;
+
+            scene.add(obj);
+            objects.push(obj);
+
+            var obj2 = obj.clone();
+            obj2.position.x = x * spread;
+            obj2.position.y = y * spread  + 80 ;
+
+            scene.add(obj2);
+            objects.push(obj2);
+
+            var obj3 = obj.clone();
+            obj3.position.x = x * spread;
+            obj3.position.y = y * spread  - 80 ;
+
+            scene.add(obj3);
+            objects.push(obj3);
+            
+            */
 
             for  ( var i = -1; i < 2; i++ ) { 
                 var obj2 = obj.clone();
@@ -138,6 +227,7 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 
         {
             // add cross marks on the ground
+            const material = new THREE.LineBasicMaterial( { color: 'white'} );
             const points = [];
             points.push( new THREE.Vector3( 0 , 0, -2 ) );
             points.push( new THREE.Vector3( 0, 0, 2 ) );
@@ -146,31 +236,22 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
             points.push( new THREE.Vector3( -2, 0, 0 ) );
             points.push( new THREE.Vector3( 0 , 0, 0 ) );
 
-            var geometry = new THREE.BufferGeometry().setFromPoints( points );
-            var x = 0;
-            var z = 0;
+            const geometry = new THREE.BufferGeometry().setFromPoints( points );
+            const line = new THREE.Line( geometry, material );
             const spread = 15;
-            var r = 0;
-            const th1 = 100;
-            var counter = 0;
-            for  ( var i = -50 ; i < 50 ; i++ ) { 
-                for ( var j = -50 ; j < 50 ; j++ ) {
-                    var material1 = new THREE.LineBasicMaterial();
-                    x = spread*i;
-                    z = spread*j;
-                    r = Math.sqrt(Math.pow(x, 2) + Math.pow(z, 2));
-                    if (r<th1){
-                        material1.transparent = true;
-                        material1.opacity = 1;
-                    }
-                    else{
-                        material1.transparent = true;
-                        material1.opacity = 1-((r-th1)/100);
-                    }
-                    var line23 = new THREE.Line( geometry, material1 );
-                    line23.position.x = x;
-                    line23.position.z = z;
-                    scene.add(line23);
+            const x = 0;
+            const y = 0;
+            const z = 0;
+
+            for  ( var i = -100 ; i < 100 ; i++ ) { 
+                for ( var j = -100 ; j < 100 ; j++ ) { 
+                    var line2 = line.clone();
+
+                    line2.position.x = x * spread + 15*i;
+                    line2.position.z = z * spread + 15*j;
+                    line2.material.transparent = true;
+                    line2.material.opacity = 0.3;
+                    scene.add(line2);
                 }
             }
 
@@ -182,9 +263,9 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
             // const density = 0.005;
             // scene.fog = new THREE.FogExp2('black', density);
             // }
-            //const color = 'black';  // white
-            //const near = 20;
-            //const far = 500;
+            const color = 'black';  // white
+            const near = 20;
+            const far = 500;
             //scene.fog = new THREE.Fog(color, near, far);
         }
 
@@ -318,7 +399,7 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
             }
 
             async function doit() {
-                const font = await loadFont('https://threejs.org/examples/fonts/helvetiker_regular.typeface.json');  /* threejsfundamentals: url */
+                const font = await loadFont('helvetiker_regular.typeface.json');  /* threejsfundamentals: url */
                 const geometry = new TextGeometry('three.js', {
                     font: font,
                     size: 3.0,
@@ -411,6 +492,10 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
                 const canvas = renderer.domElement;
                 camera.aspect = canvas.clientWidth / canvas.clientHeight;
                 camera.updateProjectionMatrix();
+
+                topCamera.aspect = canvas.clientWidth / canvas.clientHeight;
+                topCamera.updateProjectionMatrix();
+
             }
 
             objects.forEach((obj, ndx) => {
@@ -422,8 +507,32 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 
             // required if controls.enableDamping or controls.autoRotate are set to true
             controls.update();
+            controls2.update();
 
             renderer.render(scene, camera);
+            renderer.render(scene, topCamera);
+
+            var SCREEN_W, SCREEN_H;
+            SCREEN_W = window.innerWidth;
+            SCREEN_H = window.innerHeight;
+
+            var left,bottom,width,height;
+
+            left = 1; bottom = 1; width = 0.5*SCREEN_W-2; height = SCREEN_H-2;
+            renderer.setViewport (left,bottom,width,height);
+            renderer.setScissor(left,bottom,width,height)*
+            renderer.setScissorTest (true);
+            topCamera.aspect = width/height;
+            topCamera.updateProjectionMatrix();
+            renderer.render (scene, topCamera);
+
+            left = 0.5*SCREEN_W+1; bottom = 1; width = 0.5*SCREEN_W-2; height = SCREEN_H-2;
+            renderer.setViewport (left,bottom,width,height);
+            renderer.setScissor(left,bottom,width,height);
+            renderer.setScissorTest (true);  // clip out "viewport"
+            camera.aspect = width/height;
+            camera.updateProjectionMatrix();
+            renderer.render (scene, camera);
 
             requestAnimationFrame(render);
             
