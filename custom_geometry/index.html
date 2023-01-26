@@ -173,7 +173,7 @@ function main()
   ]);
 
   const loader = new THREE.TextureLoader();
-  const texture = loader.load('grenouille.jpg');
+  const texture = loader.load('https://raw.githubusercontent.com/shani1610/real-time-3d-visualization/main/custom_geometry/grenouille.jpg');
 
   function makeInstance(geometry, color, x) {
     const material = new THREE.MeshBasicMaterial({color, map: texture});
