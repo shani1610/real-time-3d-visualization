@@ -1,0 +1,226 @@
+
+<!-- Licensed under a BSD license. See license.html for license -->
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+    <title>Three.js - Custom BufferGeometry</title>
+    <style>
+    html, body {
+        height: 100%;
+        margin: 0;
+    }
+    #c {
+        width: 100%;
+        height: 100%;
+        display: block;
+    }
+    </style>
+  </head>
+  <body>
+    <canvas id="c"></canvas>
+  </body>
+
+  <script async src="https://unpkg.com/es-module-shims@1.3.6/dist/es-module-shims.js"></script>
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "https://unpkg.com/three@0.148.0/build/three.module.js",
+        "three/addons/": "https://unpkg.com/three@0.148.0/examples/jsm/"
+      }
+    }
+  </script>
+
+<script type="module">
+  import * as THREE from 'three';
+  import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+function main() 
+{
+  const canvas = document.querySelector('#c');
+  const renderer = new THREE.WebGLRenderer({canvas, antialias: true});
+
+  window.addEventListener("click", onclick, true);
+
+  const fov = 75;
+  const aspect = 2;  // the canvas default
+  const near = 0.1;
+  const far = 100;
+  const camera = new THREE.PerspectiveCamera(fov, aspect, near, far);
+  camera.position.z = 5;
+
+  var controls = new OrbitControls( camera, renderer.domElement );
+  controls.listenToKeyEvents( window ); // optional
+
+  const scene = new THREE.Scene();
+  scene.background = new THREE.Color( 0x333333 );
+
+  {
+    const color = 0xFFFFFF;
+    const intensity = 1;
+    const light = new THREE.DirectionalLight(color, intensity);
+    light.position.set(-1, 2, 4);
+    scene.add(light);
+  }
+  
+  const x = 1/3;
+  const u1 = 1/3;
+  const v1 = 1/3;
+  //var w = texture.image.width;
+  //var h = texture.image.height;
+  // NOT A GOOD EXAMPLE OF HOW TO MAKE A CUBE!
+  // Only trying to make it clear most vertices are unique
+  const vertices = [
+    // front
+
+    //A
+    { pos: [-1, -1,  1], norm: [ 0,  0,  1], uv: [0, 0], }, // 0
+    { pos: [-x, -1,  1], norm: [ 0,  0,  1], uv: [u1, 0], }, // 1
+    { pos: [-1, 1,  1],  norm: [ 0,  0,  1], uv: [0, 1], }, // 2
+    //B
+    { pos: [-x, 1,  1],  norm: [ 0,  0,  1], uv: [u1, 1], }, // 3
+    //C
+    { pos: [-x, -x,  1], norm: [ 0,  0,  1], uv: [u1, v1], }, // 4
+    { pos: [x, -1,  1],  norm: [ 0,  0,  1], uv: [1-u1, 0], }, // 5
+
+    //D
+    { pos: [x, -x,  1],  norm: [ 0,  0,  1], uv: [1-u1, v1], }, // 6
+    //E
+    { pos: [-x, x,  1],  norm: [ 0,  0,  1], uv: [u1, 1-v1], }, // 7
+    { pos: [x, x,  1],   norm: [ 0,  0,  1], uv: [1-u1, 1-v1], }, // 8
+
+    //F
+    { pos: [x, 1,  1],   norm: [ 0,  0,  1], uv: [1-u1, 1], }, // 9
+    //G
+    { pos: [1, -1,  1],  norm: [ 0,  0,  1], uv: [1, 0], }, // 10
+    //H
+    { pos: [ 1, 1,  1],  norm: [ 0,  0,  1], uv: [1, 1], }, // 11
+
+
+    // right
+    { pos: [ 1, -1,  1], norm: [ 1,  0,  0], uv: [0, 0], }, // 12
+    { pos: [ 1, -1, -1], norm: [ 1,  0,  0], uv: [1, 0], }, // 13
+    { pos: [ 1,  1,  1], norm: [ 1,  0,  0], uv: [0, 1], }, // 14
+    { pos: [ 1,  1, -1], norm: [ 1,  0,  0], uv: [1, 1], }, // 15
+    // back
+    { pos: [ 1, -1, -1], norm: [ 0,  0, -1], uv: [0, 0], }, // 16
+    { pos: [-1, -1, -1], norm: [ 0,  0, -1], uv: [1, 0], }, // 17
+    { pos: [ 1,  1, -1], norm: [ 0,  0, -1], uv: [0, 1], }, // 18
+    { pos: [-1,  1, -1], norm: [ 0,  0, -1], uv: [1, 1], }, // 19
+    // left
+    { pos: [-1, -1, -1], norm: [-1,  0,  0], uv: [0, 0], }, // 20
+    { pos: [-1, -1,  1], norm: [-1,  0,  0], uv: [1, 0], }, // 21
+    { pos: [-1,  1, -1], norm: [-1,  0,  0], uv: [0, 1], }, // 22
+    { pos: [-1,  1,  1], norm: [-1,  0,  0], uv: [1, 1], }, // 23
+    // top
+    { pos: [ 1,  1, -1], norm: [ 0,  1,  0], uv: [0, 0], }, // 24
+    { pos: [-1,  1, -1], norm: [ 0,  1,  0], uv: [1, 0], }, // 25
+    { pos: [ 1,  1,  1], norm: [ 0,  1,  0], uv: [0, 1], }, // 26
+    { pos: [-1,  1,  1], norm: [ 0,  1,  0], uv: [1, 1], }, // 27
+    // bottom
+    { pos: [ 1, -1,  1], norm: [ 0, -1,  0], uv: [0, 0], }, // 28
+    { pos: [-1, -1,  1], norm: [ 0, -1,  0], uv: [1, 0], }, // 29
+    { pos: [ 1, -1, -1], norm: [ 0, -1,  0], uv: [0, 1], }, // 30
+    { pos: [-1, -1, -1], norm: [ 0, -1,  0], uv: [1, 1], }, // 31
+  ];
+  const numVertices = vertices.length;
+  const positionNumComponents = 3;
+  const normalNumComponents = 3;
+  const uvNumComponents = 2;
+  const positions = new Float32Array(numVertices * positionNumComponents);
+  const normals = new Float32Array(numVertices * normalNumComponents);
+  const uvs = new Float32Array(numVertices * uvNumComponents);
+  let posNdx = 0;
+  let nrmNdx = 0;
+  let uvNdx = 0;
+  for (const vertex of vertices) {
+    positions.set(vertex.pos, posNdx);
+    normals.set(vertex.norm, nrmNdx);
+    uvs.set(vertex.uv, uvNdx);
+    posNdx += positionNumComponents;
+    nrmNdx += normalNumComponents;
+    uvNdx += uvNumComponents;
+  }
+
+  const geometry = new THREE.BufferGeometry();
+  geometry.setAttribute(
+      'position',
+      new THREE.BufferAttribute(positions, positionNumComponents));
+  geometry.setAttribute(
+      'normal',
+      new THREE.BufferAttribute(normals, normalNumComponents));
+  geometry.setAttribute(
+      'uv',
+      new THREE.BufferAttribute(uvs, uvNumComponents));
+
+  const m = 8;
+  geometry.setIndex([
+    // front
+    0,      1,      2,  //A
+    2,      1,      3,  //B
+    1,      5,      4,  //C
+    4,      5,      6,  //D
+    7,      8,      3, //E
+    3,      8,      9, //F
+    5,     10,     9, //G
+    9,     10,     11, //H
+    4+m,    5+m,    6+m,    6+m,    5+m,    7+m,  // right
+    8+m,    9+m,    10+m,   10+m,   9+m,    11+m,  // back
+    12+m,   13+m,   14+m,   14+m,   13+m,   15+m,  // left
+    16+m,   17+m,   18+m,   18+m,   17+m,   19+m,  // top
+    20+m,   21+m,   22+m,   22+m,   21+m,   23+m,  // bottom
+  ]);
+
+  const loader = new THREE.TextureLoader();
+  const texture = loader.load('grenouille.jpg');
+
+  function makeInstance(geometry, color, x) {
+    const material = new THREE.MeshBasicMaterial({color, map: texture});
+
+    const cube = new THREE.Mesh(geometry, material);
+    scene.add(cube);
+
+    cube.position.x = x;
+    return cube;
+  }
+
+  const cubes = [
+    makeInstance(geometry, 0xFFFFFF,  0),
+    makeInstance(geometry, 0xFFFFFF, -3),
+    makeInstance(geometry, 0xFFFFFF,  3),
+  ];
+
+
+  function resizeRendererToDisplaySize(renderer) {
+    const canvas = renderer.domElement;
+    const width = canvas.clientWidth;
+    const height = canvas.clientHeight;
+    const needResize = canvas.width !== width || canvas.height !== height;
+    if (needResize) {
+      renderer.setSize(width, height, false);
+    }
+    return needResize;
+  }
+
+  function render(time) {
+//    time *= 0.0004;
+
+    if (resizeRendererToDisplaySize(renderer)) {
+      const canvas = renderer.domElement;
+      camera.aspect = canvas.clientWidth / canvas.clientHeight;
+      camera.updateProjectionMatrix();
+    }
+
+    controls.update(); // only required if controls.enableDamping = true, or if controls.autoRotate = true
+    renderer.render(scene, camera);
+    requestAnimationFrame(render);
+  }
+
+
+  requestAnimationFrame(render);
+}
+
+main();
+</script>
+</html>
