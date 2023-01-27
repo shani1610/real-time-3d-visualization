@@ -23,14 +23,14 @@ in the second task we were asked in the same web page, display the previous scen
 
 for the third task we were asked to consider the 3D scene with 3 boxes in a given file and make a square hole on each face of these box. For this we must modify the geometry structure of each face in the custom geometry object, faces which are now defined as a set of 4 rectangles (which correspond to 8 triangles) instead of one initially used (which was corresponding to 2 triangles). To keep the textures correctly mapped we also must assign correct values to the texture coordinates associated to each vertex.
 
-![vertices](https://user-images.githubusercontent.com/56839113/215136592-faf6a4ab-981f-4ff8-bc4b-856f83a4bada.png)
+<img src="https://user-images.githubusercontent.com/56839113/215136592-faf6a4ab-981f-4ff8-bc4b-856f83a4bada.png" width="500">
 
 ### Practical Work 1: Task 4 + 5 Hierarchical transformations and VR experimentation
 
 for the third task we were asked to build a scene allowing to simulate in 3D the movements of [Cubeman](https://sketchfab.com/3d-models/cubeman-a982359704c04eb59ac34a4042984f77).
 Your 3D model must be identical, and it must be able to move with the same degrees of freedom. Animate this model and transform the scene in a VR experience.
 
-![cubeman2](https://user-images.githubusercontent.com/56839113/215136655-7bc8500b-05f2-4c64-a249-a430756fce0f.png)
+<img src="https://user-images.githubusercontent.com/56839113/215136655-7bc8500b-05f2-4c64-a249-a430756fce0f.png" width="500">
 
 ### Acknowledgements
 
