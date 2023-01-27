@@ -72,8 +72,6 @@ function main()
   // NOT A GOOD EXAMPLE OF HOW TO MAKE A CUBE!
   // Only trying to make it clear most vertices are unique
   const vertices = [
-    // front
-
     //A
     { pos: [-1, -1,  1], norm: [ 0,  0,  1], uv: [0, 0], }, // 0
     { pos: [-x, -1,  1], norm: [ 0,  0,  1], uv: [u1, 0], }, // 1
@@ -96,33 +94,6 @@ function main()
     { pos: [1, -1,  1],  norm: [ 0,  0,  1], uv: [1, 0], }, // 10
     //H
     { pos: [ 1, 1,  1],  norm: [ 0,  0,  1], uv: [1, 1], }, // 11
-
-
-    // right
-    { pos: [ 1, -1,  1], norm: [ 1,  0,  0], uv: [0, 0], }, // 12
-    { pos: [ 1, -1, -1], norm: [ 1,  0,  0], uv: [1, 0], }, // 13
-    { pos: [ 1,  1,  1], norm: [ 1,  0,  0], uv: [0, 1], }, // 14
-    { pos: [ 1,  1, -1], norm: [ 1,  0,  0], uv: [1, 1], }, // 15
-    // back
-    { pos: [ 1, -1, -1], norm: [ 0,  0, -1], uv: [0, 0], }, // 16
-    { pos: [-1, -1, -1], norm: [ 0,  0, -1], uv: [1, 0], }, // 17
-    { pos: [ 1,  1, -1], norm: [ 0,  0, -1], uv: [0, 1], }, // 18
-    { pos: [-1,  1, -1], norm: [ 0,  0, -1], uv: [1, 1], }, // 19
-    // left
-    { pos: [-1, -1, -1], norm: [-1,  0,  0], uv: [0, 0], }, // 20
-    { pos: [-1, -1,  1], norm: [-1,  0,  0], uv: [1, 0], }, // 21
-    { pos: [-1,  1, -1], norm: [-1,  0,  0], uv: [0, 1], }, // 22
-    { pos: [-1,  1,  1], norm: [-1,  0,  0], uv: [1, 1], }, // 23
-    // top
-    { pos: [ 1,  1, -1], norm: [ 0,  1,  0], uv: [0, 0], }, // 24
-    { pos: [-1,  1, -1], norm: [ 0,  1,  0], uv: [1, 0], }, // 25
-    { pos: [ 1,  1,  1], norm: [ 0,  1,  0], uv: [0, 1], }, // 26
-    { pos: [-1,  1,  1], norm: [ 0,  1,  0], uv: [1, 1], }, // 27
-    // bottom
-    { pos: [ 1, -1,  1], norm: [ 0, -1,  0], uv: [0, 0], }, // 28
-    { pos: [-1, -1,  1], norm: [ 0, -1,  0], uv: [1, 0], }, // 29
-    { pos: [ 1, -1, -1], norm: [ 0, -1,  0], uv: [0, 1], }, // 30
-    { pos: [-1, -1, -1], norm: [ 0, -1,  0], uv: [1, 1], }, // 31
   ];
   const numVertices = vertices.length;
   const positionNumComponents = 3;
@@ -147,9 +118,11 @@ function main()
   geometry.setAttribute(
       'position',
       new THREE.BufferAttribute(positions, positionNumComponents));
+
   geometry.setAttribute(
       'normal',
       new THREE.BufferAttribute(normals, normalNumComponents));
+      
   geometry.setAttribute(
       'uv',
       new THREE.BufferAttribute(uvs, uvNumComponents));
@@ -165,32 +138,37 @@ function main()
     3,      8,      9, //F
     5,     10,     9, //G
     9,     10,     11, //H
-    4+m,    5+m,    6+m,    6+m,    5+m,    7+m,  // right
-    8+m,    9+m,    10+m,   10+m,   9+m,    11+m,  // back
-    12+m,   13+m,   14+m,   14+m,   13+m,   15+m,  // left
-    16+m,   17+m,   18+m,   18+m,   17+m,   19+m,  // top
-    20+m,   21+m,   22+m,   22+m,   21+m,   23+m,  // bottom
   ]);
 
   const loader = new THREE.TextureLoader();
-  const texture = loader.load('https://raw.githubusercontent.com/shani1610/real-time-3d-visualization/main/custom_geometry/grenouille.jpg');
-
-  function makeInstance(geometry, color, x) {
-    const material = new THREE.MeshBasicMaterial({color, map: texture});
-
-    const cube = new THREE.Mesh(geometry, material);
-    scene.add(cube);
-
-    cube.position.x = x;
-    return cube;
+  const texture = loader.load('grenouille.jpg');
+  
+  function makeFaceInstance(geometry, color, x, y, z, x_rotate, z_rotate) {
+    const material = new THREE.MeshBasicMaterial({color, map: texture, side: THREE.DoubleSide});
+    const face = new THREE.Mesh(geometry, material);
+    scene.add(face);
+    face.position.x = x;
+    face.position.y = y;
+    face.position.z = z;
+    face.rotation.x = Math.PI/2*x_rotate;
+    face.rotation.y = Math.PI/2*z_rotate;
+    return face;
   }
 
-  const cubes = [
-    makeInstance(geometry, 0xFFFFFF,  0),
-    makeInstance(geometry, 0xFFFFFF, -3),
-    makeInstance(geometry, 0xFFFFFF,  3),
+  function duplicateCube(x){
+    const cube = [
+    makeFaceInstance(geometry, 0xFFFFFF,  x, 0, 1, -1, 0), //up
+    makeFaceInstance(geometry, 0xFFFFFF,  x, 0, -1, 0, 0), // back 
+    makeFaceInstance(geometry, 0xFFFFFF,  x, 0, 1, 1, 0), // down
+    makeFaceInstance(geometry, 0xFFFFFF,  x, 0, 1, 0, 0), // front
+    makeFaceInstance(geometry, 0xFFFFFF,  x, 0, 1, 0, -1), // left
+    makeFaceInstance(geometry, 0xFFFFFF,  x, 0, 1, 0, 1), // right
   ];
+  }
 
+  duplicateCube(-3);
+  duplicateCube(0);
+  duplicateCube(3);
 
   function resizeRendererToDisplaySize(renderer) {
     const canvas = renderer.domElement;
