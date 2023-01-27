@@ -76,39 +76,8 @@ import {VRButton} from 'three/addons/webxr/VRButton.js';
             controls.update();
             document.querySelector('#nonvr').style.display = 'none';
         }
-        /*
-    //var controls = new OrbitControls( camera, renderer.domElement );
-    //controls.listenToKeyEvents( window ); // optional
-    // support vr and non-vr:
-    const params = (new URL(document.location)).searchParams;
-    const allowvr = params.get('allowvr') === 'true';
-    if (allowvr) {
-        renderer.xr.enabled = true;
-        document.body.appendChild(VRButton.createButton(renderer));
-        document.querySelector('#vr').style.display = 'none';
-    } else {
-        // no VR, add some controls
-        const controls = new OrbitControls(camera, canvas);
-        controls.target.set(0, 1.6, -2);
-        controls.update();
-        document.querySelector('#nonvr').style.display = 'none';
-    }
-    */
-/*
-        // controls
-        const controls = new OrbitControls( camera, renderer.domElement );
-        controls.listenToKeyEvents( window ); // optional
-        controls.enableDamping = false; // an animation loop is required when either damping or auto-rotation are enabled
-        controls.dampingFactor = 0.05;
-        controls.screenSpacePanning = false;
-        controls.minDistance = 100;
-        controls.maxDistance = 500;
-        controls.maxPolarAngle = Math.PI / 2;
-        */
 
         camera.position.set( 0, 0, 200 );
-
-        //controls.update();
 
         const scene = new THREE.Scene();
         scene.background = new THREE.Color('black');
@@ -128,37 +97,33 @@ import {VRButton} from 'three/addons/webxr/VRButton.js';
             scene.add(light);
         }
 
-        const elbow_objects = [];
+        const left_elbow_objects = [];
+        const right_elbow_objects = [];
+        const left_leg_objects = [];
+        const neck_objects = [];
         const objects = [];
         const floor_objects = [];
         const spread = 15;
-        
-        function createMaterial() {
-            const material = new THREE.MeshPhongMaterial({
-                side: THREE.DoubleSide,
-            });
 
-            const hue = Math.random();
-            const saturation = 1;
-            const luminance = .5;
-            material.color.setHSL(hue, saturation, luminance);
+        const loader = new THREE.TextureLoader();
+        const texture = loader.load('hexagons2.jpg');
 
+        function createMaterial(color, texture) {
+            const material = new THREE.MeshPhongMaterial({ color: color, map: texture});
             return material;
         }
 
-        function addSolidGeometry(x, y, z, geometry, main_mesh, objects_arr) {
-            // for main geomentry the main mesh is the scene
-            const mesh = new THREE.Mesh(geometry, createMaterial());
+        function addSolidGeometry(x, y, z, geometry, main_mesh, color, texture) {
+            const mesh = new THREE.Mesh(geometry, createMaterial(color, texture));
             mesh.position.x = x * spread;
             mesh.position.y = y * spread;
             mesh.position.z = z * spread;
             main_mesh.add(mesh);
-            objects_arr.push(mesh);
             return mesh
         }
 
         function addLineGeometry(x, y, z, geometry, floor_objects) {
-            const material = new THREE.LineBasicMaterial({ color: 0x000000 });
+            const material = new THREE.LineBasicMaterial({ color: "0x000000" });
             const mesh = new THREE.LineSegments(geometry, material);
             mesh.position.x = x * spread;
             mesh.position.y = y * spread;
@@ -167,36 +132,36 @@ import {VRButton} from 'three/addons/webxr/VRButton.js';
             floor_objects.push(obj);
         }
 
-        {
+        function addGround(scene) {
             // add cross marks on the ground
             const points = [];
-            points.push( new THREE.Vector3( 0 , 0, -2 ) );
             points.push( new THREE.Vector3( 0, 0, 2 ) );
-            points.push( new THREE.Vector3( 0 , 0, 0 ) );
-            points.push( new THREE.Vector3( 2, 0, 0 ) );
-            points.push( new THREE.Vector3( -2, 0, 0 ) );
-            points.push( new THREE.Vector3( 0 , 0, 0 ) );
-
+            points.push( new THREE.Vector3( 2, 0, 1 ) );
+            points.push( new THREE.Vector3( 2, 0, -1 ) );
+            points.push( new THREE.Vector3( 0, 0, -2 ) );
+            points.push( new THREE.Vector3( -2, 0, -1 ) );
+            points.push( new THREE.Vector3( -2, 0, 1) );
+            points.push( new THREE.Vector3( 0, 0, 2) );
             var geometry = new THREE.BufferGeometry().setFromPoints( points );
             var x = 0;
             var z = 0;
-            const spread = 15;
+            const spread = 4.5;
             var r = 0;
-            const th1 = 100;
+            const th1 = 50;
             var counter = 0;
-            for  ( var i = -50 ; i < 50 ; i++ ) { 
-                for ( var j = -50 ; j < 50 ; j++ ) {
+            for  ( var i = -30 ; i < 30 ; i++ ) { 
+                for ( var j = -30 ; j < 30 ; j++ ) {
                     var material1 = new THREE.LineBasicMaterial();
                     x = spread*i;
                     z = spread*j;
                     r = Math.sqrt(Math.pow(x, 2) + Math.pow(z, 2));
                     if (r<th1){
                         material1.transparent = true;
-                        material1.opacity = 1;
+                        material1.opacity = 0.5;
                     }
                     else{
                         material1.transparent = true;
-                        material1.opacity = 1-((r-th1)/100);
+                        material1.opacity = 0.5-((r-th1)/100);
                     }
                     var line23 = new THREE.Line( geometry, material1 );
                     line23.position.x = x;
@@ -206,44 +171,68 @@ import {VRButton} from 'three/addons/webxr/VRButton.js';
             }
 
         }
-        // cube 1 (head):
-        addSolidGeometry(0, 5.7, 0, new THREE.BoxGeometry(12, 12, 4), scene, objects);
-        // cube 2 (upper body):
-        addSolidGeometry(0, 4.8, 0, new THREE.BoxGeometry(16, 8, 4), scene, objects);
-        // cube 3 (mid body): 
-        addSolidGeometry(0, 3.8, 0, new THREE.BoxGeometry(16, 16, 4), scene, objects);
-        // cube 4 (mid body):
-        addSolidGeometry(0, 2.8, 0, new THREE.BoxGeometry(16, 8, 4), scene, objects);
-        // cube 5 (upper leg left):
-        addSolidGeometry(-0.5, 2, 0, new THREE.BoxGeometry(4, 8, 4), scene, objects);
-        // cube 6 (upper leg left):
-        addSolidGeometry(0.5, 2, 0, new THREE.BoxGeometry(4, 8, 4), scene, objects);
-        // cube 7 (lower leg left):
-        addSolidGeometry(-0.5, 1, 0, new THREE.BoxGeometry(4, 16, 4), scene, objects);
-        // cube 8 (lower leg right):
-        addSolidGeometry(0.5, 1, 0, new THREE.BoxGeometry(4, 16, 4), scene, objects);
-        // cube 9 (foot left):
-        addSolidGeometry(-0.5, 0, 0, new THREE.BoxGeometry(4, 4, 4), scene, objects);
-        // cube 10 (foot right):
-        addSolidGeometry(0.5, 0, 0, new THREE.BoxGeometry(4, 4, 4), scene, objects);
-        // cube 12 (upper hand right):
-        addSolidGeometry(1, 4.5, 0, new THREE.BoxGeometry(4, 10, 4), scene, objects);
 
-        // cube 11 (upper hand left):
-        const upper_hand_left_mesh = addSolidGeometry(-1, 4.5, 0, new THREE.BoxGeometry(4, 10, 4), scene, elbow_objects);
-        // elbow joint left
-        const elbow_joint_left_mesh = addSolidGeometry(0, -0.5, 0, new THREE.SphereGeometry(2, 2, 2), upper_hand_left_mesh, elbow_objects);     
-        // cube 13 (mid hand left):
-        const mid_hand_left_mesh = addSolidGeometry(0, -0.5, 0, new THREE.BoxGeometry(4, 10, 4), elbow_joint_left_mesh, elbow_objects);
-        // wrist joint left
-        const wrist_joint_mesh = addSolidGeometry(0, -0.5, 0, new THREE.SphereGeometry(2, 2, 2), mid_hand_left_mesh, elbow_objects); 
-        // cube 15 (lower hand left):
-        addSolidGeometry(0, -0.5, 0, new THREE.BoxGeometry(4, 4, 4), wrist_joint_mesh, elbow_objects);
+        addGround(scene);
+        const color_b = "blue"
+        const color_r = "red"
+        const color_bl = "black"
 
-        // cube 14 (mid hand right):
-        addSolidGeometry(1, 3.5, 0, new THREE.BoxGeometry(4, 10, 4), scene, objects); 
-        // cube 16 (lower hand right):
-        addSolidGeometry(1, 2.5, 0, new THREE.BoxGeometry(4, 4, 4), scene, objects);
+        function createLeg(x_hip, y_hip, z_hip, scene){
+        const hip_joint_left_mesh = addSolidGeometry(x_hip, y_hip, z_hip, jointGeo, scene, color_bl, texture);
+        const upper_leg_left_mesh = addSolidGeometry(0, gap, 0, new THREE.BoxGeometry(4, 8, 4), hip_joint_left_mesh, color_b, texture);
+        const knee_joint_left_mesh = addSolidGeometry(0, gap, 0, jointGeo, upper_leg_left_mesh, color_bl, texture);
+        const lower_leg_left_mesh = addSolidGeometry(0, gap, 0, new THREE.BoxGeometry(4, 16, 4), knee_joint_left_mesh, color_r, texture);
+        const foot_joint_left_mesh = addSolidGeometry(0, gap, 0, jointGeo, lower_leg_left_mesh, color_bl, texture);
+        const foot_left_mesh = addSolidGeometry(0, gap-0.1, 0, new THREE.BoxGeometry(4, 4, 4), foot_joint_left_mesh, color_r, texture);
+            return [hip_joint_left_mesh, knee_joint_left_mesh, foot_joint_left_mesh]
+        }
+
+        function createArm(x_shoulder, y_shoulder, z_shoulder, scene){
+            const shoulder_joint_mesh = addSolidGeometry(x_shoulder,y_shoulder,z_shoulder, new THREE.SphereGeometry(2, 2, 2), scene, color_bl, texture); 
+            const upper_hand_mesh = addSolidGeometry(0, gap, 0, new THREE.BoxGeometry(4, 10, 4), shoulder_joint_mesh, color_b, texture);
+            const elbow_joint_mesh = addSolidGeometry(0, gap, 0, jointGeo, upper_hand_mesh, color_bl, texture);     
+            const mid_hand_mesh = addSolidGeometry(0, gap, 0, new THREE.BoxGeometry(4, 10, 4), elbow_joint_mesh, color_b, texture);
+            const wrist_joint_mesh = addSolidGeometry(0, gap, 0, jointGeo, mid_hand_mesh, color_bl, texture); 
+            const lower_hand_mesh = addSolidGeometry(0, gap, 0, new THREE.BoxGeometry(4, 4, 4), wrist_joint_mesh, color_r, texture);
+            return [shoulder_joint_mesh, elbow_joint_mesh, wrist_joint_mesh]
+        }
+
+        const jointGeo = new THREE.SphereGeometry(2, 2, 2);
+        const gap = -0.45;
+        // head and neck:
+        const neck_mesh = addSolidGeometry(0, 5.1, 0, jointGeo, scene, color_bl, texture);
+        const head_mesh = addSolidGeometry(0, 0.5, 0, new THREE.BoxGeometry(12, 12, 4), neck_mesh, color_r, texture);
+
+        // body:
+        const upper_body_mesh = addSolidGeometry(0, 4.8, 0, new THREE.BoxGeometry(16, 8, 4), scene, color_r, texture);
+        const spine_mesh = addSolidGeometry(0, gap, 0, jointGeo, upper_body_mesh, color_bl, texture);
+        const mid_body_mesh = addSolidGeometry(0, gap, 0, new THREE.BoxGeometry(16, 16, 4), spine_mesh, color_b, texture);
+        const lower_spine_mesh = addSolidGeometry(0, gap, 0, jointGeo, mid_body_mesh, color_bl, texture);
+        const lower_body_mesh = addSolidGeometry(0, gap, 0, new THREE.BoxGeometry(16, 8, 4), lower_spine_mesh, color_b, texture);
+
+        // left leg:
+        const left_leg_joints = createLeg(-0.5, gap, 0, lower_body_mesh);
+        const hip_joint_left_mesh = left_leg_joints[0];
+        const knee_joint_left_mesh = left_leg_joints[1];
+        const foot_joint_left_mesh = left_leg_joints[2];
+
+        // right leg:
+        const right_leg_joints = createLeg(0.5, gap, 0, lower_body_mesh);
+        const hip_joint_right_mesh = right_leg_joints[0];
+        const knee_joint_right_mesh = right_leg_joints[1];
+        const foot_joint_right_mesh = right_leg_joints[2];
+
+        // left arm:
+        const left_hand_joints = createArm(-0.85,4.7,0, scene);
+        const shoulder_joint_left_mesh = left_hand_joints[0];
+        const elbow_joint_left_mesh = left_hand_joints[1];
+        const wrist_joint_left_mesh = left_hand_joints[2];
+
+        // right arm:
+        const right_hand_joints = createArm(0.85,4.7,0, scene);
+        const shoulder_joint_right_mesh = right_hand_joints[0];
+        const elbow_joint_right_mesh = right_hand_joints[1];
+        const wrist_joint_right_mesh = right_hand_joints[2];
 
         {
             const loader = new FontLoader();
@@ -276,26 +265,39 @@ import {VRButton} from 'three/addons/webxr/VRButton.js';
                 camera.updateProjectionMatrix();
             }
 
-            elbow_joint_left_mesh.rotation.x = Math.sin(Math.PI/2*time);
+            const theta = (Math.sin(Math.PI*time));
+            if (theta > 0){
 
-            /*
-            elbow_objects.forEach((obj, ndx) => {
-                const speed = .1 + ndx * .05;
-                const rot = time * speed;
-                obj.rotation.y = rot;
-            });
-            */
-            
+            shoulder_joint_left_mesh.rotation.x = -theta/1.5;
 
+            hip_joint_right_mesh.rotation.x = theta/2.5;
+            knee_joint_right_mesh.rotation.x = -theta/5;
+
+            shoulder_joint_right_mesh.rotation.x = theta/1.5;
+            elbow_joint_right_mesh.rotation.z = theta/8;
+
+            spine_mesh.rotation.x = theta/4;
+
+            knee_joint_left_mesh.rotation.x = -theta/5;
+            knee_joint_left_mesh.rotation.z = -theta/20;
+
+            neck_mesh.rotation.x = theta/2;
+            upper_body_mesh.rotation.x = theta/3;
+            lower_spine_mesh.rotation.z = theta/6;
+            //const upper_body_mesh = addSolidGeometry(0, 4.8, 0, new THREE.BoxGeometry(16, 8, 4), scene, color_r, texture);
+        //const spine_mesh = addSolidGeometry(0, gap, 0, jointGeo, upper_body_mesh, color_bl, texture);
+        //const mid_body_mesh = addSolidGeometry(0, gap, 0, new THREE.BoxGeometry(16, 16, 4), spine_mesh, color_b, texture);
+        //const lower_spine_mesh = addSolidGeometry(0, gap, 0, jointGeo, mid_body_mesh, color_bl, texture);
+        //const lower_body_mesh = addSolidGeometry(0, gap, 0, new THREE.BoxGeometry(16, 8, 4), lower_spine_mesh, color_b, texture);
+
+            }
+            //lower_body_mesh.rotation.y = Math.sin(Math.PI/2*time);
+            //neck_mesh.rotation.y = Math.sin(Math.PI/2*time);
             // required if controls.enableDamping or controls.autoRotate are set to true
             //controls.update();
-
             renderer.render(scene, camera);
-
-            //renderer.setAnimationLoop(render);
-            
+            //renderer.setAnimationLoop(render); // commented for the VR option
         }
-
         renderer.setAnimationLoop(render);
     }
 
