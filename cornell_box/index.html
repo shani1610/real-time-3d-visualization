@@ -1,0 +1,1013 @@
+<!-- Licensed under a BSD license. See license.html for license -->
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+    <title>Three.js - Custom BufferGeometry</title>
+    <style>
+    html, body {
+        height: 100%;
+        margin: 0;
+    }
+    #c {
+        width: 100%;
+        height: 100%;
+        display: block;
+    }
+    </style>
+  </head>
+  <body>
+    <canvas id="c"></canvas>
+    <div class="mode">
+        <a href="?allowvr=true" id="vr">Allow VR</a>
+        <a href="?" id="nonvr">Use Non-VR Mode</a>
+    </div>
+  </body>
+
+  <script async src="https://unpkg.com/es-module-shims@1.3.6/dist/es-module-shims.js"></script>
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "https://unpkg.com/three@0.148.0/build/three.module.js",
+        "three/addons/": "https://unpkg.com/three@0.148.0/examples/jsm/"
+      }
+    }
+  </script>
+
+<script type="module">
+    import * as THREE from 'three';
+    import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+    import { GUI } from 'three/addons/libs/lil-gui.module.min.js';
+    import { RectAreaLightHelper } from 'three/addons/helpers/RectAreaLightHelper.js';
+    import { RectAreaLightUniformsLib } from 'three/addons/lights/RectAreaLightUniformsLib.js';
+    import { ShadowMapViewer } from 'three/addons/utils/ShadowMapViewer.js';
+    import { XRControllerModelFactory } from 'three/addons/webxr/XRControllerModelFactory.js';
+    import { VRButton } from 'three/addons/webxr/VRButton.js';
+    import { HTMLMesh } from 'three/addons/interactive/HTMLMesh.js';
+    import { InteractiveGroup } from 'three/addons/interactive/InteractiveGroup.js';
+    import Stats from 'three/addons/libs/stats.module.js';
+    let camera, scene, renderer;
+    let stats, statsMesh;
+
+    main();
+
+function main() 
+{
+    const canvas = document.querySelector('#c');
+    const renderer = new THREE.WebGLRenderer({canvas, antialias: true});
+    renderer.shadowMap.enabled = true;
+
+    window.addEventListener("click", onclick, true);
+
+    // camera: 
+    const fov = 75;
+    const aspect = 2;  // the canvas default
+    const near = 0.1;
+    const far = 100;
+    const camera = new THREE.PerspectiveCamera(fov, aspect, near, far);
+    camera.position.z = 30;
+    camera.position.y = 10;
+
+    // allow VR and controls if no VR:
+    const params2 = (new URL(document.location)).searchParams;
+    const allowvr = params2.get('allowvr') === 'true';
+    if (allowvr) {
+        renderer.xr.enabled = true;
+        document.body.appendChild(VRButton.createButton(renderer));
+        document.querySelector('#vr').style.display = 'none';
+        
+    } else {
+        var controls = new OrbitControls( camera, renderer.domElement );
+        controls.listenToKeyEvents( window ); // optional
+        controls.update();
+        document.querySelector('#nonvr').style.display = 'none';
+    }
+
+    // scene:
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color( 0x333333 );
+
+    // add soft white light to be able to see outside the box 
+    const light = new THREE.AmbientLight( 0x404040 );
+    scene.add( light );
+
+    // add ground for the prespective
+    function addGround(scene) {
+        // add cross marks on the ground
+        const points = [];
+        points.push( new THREE.Vector3( 0, 0, 1 ) );
+        points.push( new THREE.Vector3( 0, 0, 0 ) );
+        points.push( new THREE.Vector3( 1, 0, 0 ) );
+        points.push( new THREE.Vector3( 0, 0, 0 ) );
+        points.push( new THREE.Vector3( 0, 0, -1 ) );
+        points.push( new THREE.Vector3( 0, 0, 0) );
+        points.push( new THREE.Vector3( -1, 0, 0) );
+        var geometry = new THREE.BufferGeometry().setFromPoints( points );
+        var x = 0;
+        var z = 0;
+        const spread = 4.5;
+        var r = 0;
+        const th1 = 50;
+        var counter = 0;
+        for  ( var i = -30 ; i < 30 ; i++ ) { 
+            for ( var j = -30 ; j < 30 ; j++ ) {
+                var material1 = new THREE.LineBasicMaterial();
+                x = spread*i;
+                z = spread*j;
+                r = Math.sqrt(Math.pow(x, 2) + Math.pow(z, 2));
+                if (r<th1){
+                    material1.transparent = true;
+                    material1.opacity = 0.1;
+                }
+                else{
+                    material1.transparent = true;
+                    material1.opacity = 0.1-((r-th1)/100);
+                }
+                var line23 = new THREE.Line( geometry, material1 );
+                line23.position.x = x;
+                line23.position.z = z;
+                scene.add(line23);
+            }
+        }
+    }
+    addGround(scene);
+
+
+    ///////////////////////////////////////////////////////////////////////////////////
+    // Exercise 1 –Basic Modeling 
+    ///////////////////////////////////////////////////////////////////////////////////
+    // create the cornel box room according to the lab structure:
+    function CreateTheRoom(scene){
+    function Create4Poles(scene){
+        function createGeometry(pole_len){
+            const x = 1;
+            const z = 1; 
+            const vertices = [
+                { pos: [-x, -pole_len,  z], norm: [ 0,  0,  1], uv: [0, 0], }, // 0
+                { pos: [ x, -pole_len,  z], norm: [ 0,  0,  1], uv: [1, 0], }, // 1
+                { pos: [-x,  pole_len,  z], norm: [ 0,  0,  1], uv: [0, 1], }, // 2
+                { pos: [ x,  pole_len,  z], norm: [ 0,  0,  1], uv: [1, 1], }, // 3
+            ];
+            const numVertices = vertices.length;
+            const positionNumComponents = 3;
+            const normalNumComponents = 3;
+            const uvNumComponents = 2;
+            const positions = new Float32Array(numVertices * positionNumComponents);
+            const normals = new Float32Array(numVertices * normalNumComponents);
+            const uvs = new Float32Array(numVertices * uvNumComponents);
+            let posNdx = 0;
+            let nrmNdx = 0;
+            let uvNdx = 0;
+            for (const vertex of vertices) {
+                positions.set(vertex.pos, posNdx);
+                normals.set(vertex.norm, nrmNdx);
+                uvs.set(vertex.uv, uvNdx);
+                posNdx += positionNumComponents;
+                nrmNdx += normalNumComponents;
+                uvNdx += uvNumComponents;
+            }
+
+            const geometry = new THREE.BufferGeometry();
+            geometry.setAttribute(
+                'position',
+                new THREE.BufferAttribute(positions, positionNumComponents));
+            geometry.setAttribute(
+                'normal',
+                new THREE.BufferAttribute(normals, normalNumComponents));
+            geometry.setAttribute(
+                'uv',
+                new THREE.BufferAttribute(uvs, uvNumComponents));
+
+            geometry.setIndex([
+                0,  1,  2,   2,  1,  3
+            ]);
+            return geometry
+        }
+
+        const pole_len = 9;
+        const geometry = createGeometry(pole_len);
+
+        const loader = new THREE.TextureLoader();
+
+        // This function creates one face of the pole
+        function makeInstance(geometry, material, x, y ,z, x_rotate, z_rotate) {
+            var planeMesh = new THREE.Mesh(geometry, material);
+            scene.add(planeMesh);
+            planeMesh.position.x = x;
+            planeMesh.position.y = y;
+            planeMesh.position.z = z;
+            planeMesh.rotation.x = Math.PI/2*x_rotate;
+            planeMesh.rotation.y = Math.PI/2*z_rotate;
+            return planeMesh;
+        } 
+
+        const color = 0xFFFFFF
+        const texture1 = loader.load('1.jpeg');
+        const material1 = new THREE.MeshBasicMaterial({color, map: texture1,side: THREE.DoubleSide});
+        const texture2 = loader.load('2.jpeg');
+        const material2 = new THREE.MeshBasicMaterial({color, map: texture2,side: THREE.DoubleSide});
+        const texture3 = loader.load('3.jpeg');
+        const material3 = new THREE.MeshBasicMaterial({color, map: texture3,side: THREE.DoubleSide});
+        const texture4 = loader.load('4.jpeg');
+        const material4 = new THREE.MeshBasicMaterial({color, map: texture4,side: THREE.DoubleSide});
+
+        // this creates one pole
+        function makePole(x,y,z){
+            const pole = [
+                makeInstance(geometry, material2,  x-2, y, z, 0, 1),
+                makeInstance(geometry, material3,  x,y, z-2, 0, 0),
+                makeInstance(geometry, material1, x, y, z, 0, 0),
+                makeInstance(geometry, material4, x, y, z, 0, 1),
+            ];
+        }
+
+        // make 4 poles 
+        // need to rotate some of them. 
+        makePole(-10, 9, 10);
+        makePole(10, 9, 10);
+        makePole(-10, 9, -10);
+        makePole(10, 9, -10);
+    }
+    Create4Poles(scene);
+
+    function CreateTable(scene){
+        function addTableLeg(scene, x, y, z){
+            const geometry = new THREE.CylinderGeometry( 0.25, 0.25, 4, 32 ); // radiusTop, radiusBottom, height, radialSegments
+            const material = new THREE.MeshPhongMaterial( {color: "black"} );
+            const cylinder = new THREE.Mesh( geometry, material );
+            scene.add( cylinder );
+            cylinder.castShadow = true;
+            cylinder.receiveShadow = true;
+            cylinder.position.x = x
+            cylinder.position.y = y
+            cylinder.position.z = z
+        }
+
+        function makeTable(scene) {
+            const material6 = new THREE.MeshPhongMaterial({color: "white" ,side: THREE.DoubleSide});
+            const geometry6 = new THREE.BoxGeometry( 14, 0.5, 8 );
+            const table = new THREE.Mesh( geometry6, material6 );
+            scene.add(table);
+            table.position.x = 0;
+            table.position.y = 4;
+            table.position.z = 2;
+            table.receiveShadow = true;
+            //table.castShadow = true;
+            // add legs
+            const x = 6;
+            const y = 2;
+            const z = 4;
+            addTableLeg(scene, -x, y, -1)
+            addTableLeg(scene, -x, y, 5)
+            addTableLeg(scene, x, y, -1)
+            addTableLeg(scene, x, y, 5)
+        } 
+        makeTable(scene);
+    }
+    CreateTable(scene);
+
+    function CreateTopPlane(scene, x, y, z, y_rotation){
+        const loader = new THREE.TextureLoader();
+        const texture22 = loader.load('top.jpeg');
+        const material = new THREE.MeshBasicMaterial({ map : texture22 });
+        const plane = new THREE.Mesh(new THREE.PlaneGeometry(22, 6), material);
+        plane.material.side = THREE.DoubleSide;
+        plane.position.x = x;
+        plane.position.y = y;
+        plane.position.z = z;
+        plane.rotation.y = y_rotation;
+        scene.add(plane);
+    }
+
+    const y = 15;
+    CreateTopPlane(scene, 0, y, 10.99, 0);        // front
+    CreateTopPlane(scene, 0, y, -10.99, 0); // back 
+    CreateTopPlane(scene, -10.99, y, 0, Math.PI/2); // left 
+    CreateTopPlane(scene, 10.99, y, 0, Math.PI/2); // right 
+
+    function addWall(scene, material, width, height, x, y, z, rotation_x, rotation_y, receivesShadow){
+        const geometry = new THREE.PlaneGeometry( width, height ); // width, height
+        var plane = new THREE.Mesh( geometry, material );
+        scene.add( plane );
+        //plane.receiveShadow = receivesShadow;
+        plane.position.x = x;
+        plane.position.y = y;
+        plane.position.z = z;
+        plane.rotation.x = rotation_x;
+        plane.rotation.y = rotation_y;
+        return plane
+    }
+    const width = 20;
+    const height = 20;
+
+    addWall(scene, new THREE.MeshLambertMaterial({color: "white", side: THREE.DoubleSide}), width,      height-2,     0,  9, -10, 0,           0, false); // back
+    addWall(scene, new THREE.MeshLambertMaterial({color: "green", side: THREE.DoubleSide}), width,      height-2,   10,  9,   0, 0,           Math.PI/2, false); // right
+    addWall(scene, new THREE.MeshLambertMaterial({color: "white", side: THREE.DoubleSide}), width+5,    height+5,   0,  0,   0, Math.PI/2,   0, true); // floor
+    addWall(scene, new THREE.MeshLambertMaterial({color: "white", side: THREE.DoubleSide}), width+2,    height+2,     0,  18,  0, Math.PI/2,   0, false); // ceiling
+    // This is written differntely in order to provide the color of the wall changebale by the user and by the GUI:
+    var left_plane_material = new THREE.MeshLambertMaterial( {side: THREE.DoubleSide} );
+    left_plane_material.color = new THREE.Color("red");
+    const left_plane = addWall(scene, left_plane_material,                                  width,      height-2,   -10, 9,  0, 0,           Math.PI/2, false); // left
+    return left_plane; 
+
+    }
+    var left_plane = CreateTheRoom(scene) // left wall color is changeble for the user
+
+    // add three shapes on the table:
+    function addCone(scene){
+        const geometry = new THREE.ConeGeometry( 2, 4, 32 ); // radius, height, radialSegments 
+        const material = new THREE.MeshLambertMaterial( {color: 0xffff00} );
+        const cone = new THREE.Mesh( geometry, material );
+        scene.add( cone );
+        cone.position.x = -4
+        cone.position.y = 6
+        cone.position.z = 0
+        cone.castShadow = true;
+        cone.receiveShadow = true;
+        return [cone, material, geometry];
+    }
+    const [ConeMesh, ConeMaterial, ConeGeometry] = addCone(scene);
+
+    function addCylinder(scene){
+        const geometry = new THREE.CylinderGeometry( 2, 2, 4, 32 ); // radiusTop, radiusBottom, height, radialSegments
+        const material = new THREE.MeshPhongMaterial( {color: 0xffff00} );
+        const cylinder = new THREE.Mesh( geometry, material );
+        scene.add( cylinder );
+        cylinder.position.x = 4
+        cylinder.position.y = 6
+        cylinder.position.z = 0
+        cylinder.castShadow = true;
+        cylinder.receiveShadow = true;
+        return [cylinder, material, geometry];
+    }
+    const [CylinderMesh, CylinderMaterial, CylinderGeometry] = addCylinder(scene);
+
+    function addSphere(scene){
+        const geometry = new THREE.SphereGeometry( 1.7 ); // radius, widthSegments, heightSegments
+        const material = new THREE.MeshPhysicalMaterial( {color: 0xffff00} );
+        const sphere = new THREE.Mesh( geometry, material );
+        scene.add( sphere );
+        sphere.position.x = 0
+        sphere.position.y = 6
+        sphere.position.z = 4
+        sphere.castShadow = true;
+        sphere.receiveShadow = true;
+        return [sphere, material, geometry];
+    }
+    const [SphereMesh, SphereMaterial, SphereGeometry] = addSphere(scene);
+
+
+
+    ///////////////////////////////////////////////////////////////////////////////////
+    // Exercise 2 –Graphic UserInterface and Exercise 5–Surface lighting
+    ///////////////////////////////////////////////////////////////////////////////////
+    const gui = new GUI();
+
+    // add rectabgle for realistic:
+    function addRectAreaLights(scene, left_wall_color){
+        RectAreaLightUniformsLib.init();
+
+        const rectLight1 = new THREE.RectAreaLight( "red", 5, 4, 10 ); // red left
+        rectLight1.position.set( - 10, 5, 0 );
+        rectLight1.rotation.set( 0, 3*Math.PI/2, 0 ); // need to switch so the lighting would be towards the interior of the box
+        scene.add( rectLight1 );
+        scene.add(new RectAreaLightHelper( rectLight1));
+
+        const rectLight2 = new THREE.RectAreaLight( 0x00ff00, 5, 4, 10 ); // green right 
+        rectLight2.position.set( 10, 5, 0 );
+        rectLight2.rotation.set( 0, Math.PI/2, 0 );
+        scene.add( rectLight2 );
+        scene.add( new RectAreaLightHelper( rectLight2 ) );
+
+        const rectLight3 = new THREE.RectAreaLight( 0xffffff, 5, 4, 10 ); // white back
+        rectLight3.position.set( 0, 5, -10 );
+        rectLight3.rotation.set( 0, Math.PI, 0 );
+        scene.add( rectLight3 );
+        scene.add( new RectAreaLightHelper( rectLight3 ) );
+
+        return rectLight1;
+    }
+    var rectLight1 = addRectAreaLights(scene, left_wall_color);
+
+    function updaterectLight1(rectLight1, left_wall_color){
+        rectLight1.color = left_wall_color;
+    }
+
+   // left wall color GUI:
+    function leftWallGUI(gui, scene, left_plane){
+        const params = {
+            color: left_plane.material.color,
+        };
+        var LeftWallGUIFolder = gui.addFolder("Left Wall");
+        LeftWallGUIFolder.addColor( params, 'color' ).onChange( function ( val ) {
+            left_plane.material.color = val;
+            updaterectLight1(rectLight1, left_plane.material.color)
+        } );
+        return left_plane.material.color
+    }
+    var left_wall_color = leftWallGUI(gui, scene, left_plane);
+
+    ///////////////////////////////////////////////////////////////////////////////////
+    // Exercise 3 – Lightings and Exercise 6–Shadows
+    ///////////////////////////////////////////////////////////////////////////////////
+
+    // add possibilities for 4 different lights:
+    function addDirectionalLight(scene){
+        const x = 0;
+        const y = 10;
+        const z = 0;
+        const color = 0xFFFFFF;
+        const intensity = 0;
+        const light = new THREE.DirectionalLight(color, intensity);
+        light.position.set(x, y, z);
+        light.castShadow = true;
+        const helper = new THREE.DirectionalLightHelper(light);
+        light.shadow.mapSize.width = 1024;
+		light.shadow.mapSize.height = 1024;
+        scene.add( new THREE.CameraHelper( light.shadow.camera ) );
+        scene.add(helper);
+        scene.add(light);
+        return [light, helper];
+
+    }
+    const [directionalLight, directionalLightHelper] = addDirectionalLight(scene);
+
+    function addPointLight(scene){
+        const x = 0;
+        const y = 16;
+        const z = 0;
+        const color = 0xFFFFFF;
+        const intensity = 0.67;
+        const light = new THREE.PointLight(color, intensity);
+        light.position.set(x, y, z);
+        light.castShadow = true;
+        scene.add(light);
+        const helper = new THREE.PointLightHelper(light);
+        scene.add(helper);
+        light.shadow.mapSize.width = 1024;
+		light.shadow.mapSize.height = 1024;
+        scene.add( new THREE.CameraHelper( light.shadow.camera ) );
+        return [light, helper];
+
+    }
+    const [PointLight, PointLightHelper] = addPointLight(scene);
+
+    function addSpotLight(scene){
+        const color = 0xFFFFFF;
+        const intensity = 0;
+        const light = new THREE.SpotLight(color, intensity);
+        //scene.add(light.target);
+        light.castShadow = true;
+        const helper = new THREE.SpotLightHelper(light);
+        light.position.set( 0, 16, 0 );
+        light.shadow.mapSize.width = 512; // default
+        light.shadow.mapSize.height = 512; // default
+        light.shadow.camera.near = 0.5; // default
+        light.shadow.camera.far = 500; // default
+        light.shadow.focus = 1; // default
+        scene.add( new THREE.CameraHelper( light.shadow.camera ) );
+        scene.add(light);
+        scene.add(helper);
+        return [light, helper];
+    }
+    const [SpotLight, SpotLightHelper] = addSpotLight(scene);
+
+    function addHemisphereLight(scene){
+        const skyColor = 0xB1E1FF;  // light blue
+        const groundColor = 0xB97A20;  // brownish orange
+        const intensity = 0;
+        const light = new THREE.HemisphereLight(skyColor, groundColor, intensity);
+        scene.add(light);
+        //light.castShadow = true;
+        return light;
+    }
+    const HemisphereLight = addHemisphereLight(scene);
+
+    // functions for Lights GUI:
+    class ColorGUIHelper {
+        constructor(object, prop) {
+            this.object = object;
+            this.prop = prop;
+        }
+        get value() {
+            return `#${this.object[this.prop].getHexString()}`;
+        }
+        set value(hexString) {
+            this.object[this.prop].set(hexString);
+        }
+    }
+
+    function updateLight(light, helper) {
+        helper.update();
+    }
+
+    function updateDirectionalLight(light, helper) {
+        //light.target.updateMatrixWorld();
+        helper.update();
+    }
+
+    function makeXYZGUI(gui, vector3, name, onChangeFn) {
+        const folder = gui.addFolder(name);
+        folder.add(vector3, 'x', -10, 10).onChange(onChangeFn);
+        folder.add(vector3, 'y', 0, 16).onChange(onChangeFn);
+        folder.add(vector3, 'z', -10, 10).onChange(onChangeFn);
+        folder.open();
+    }
+
+    class MinMaxGUIHelper {
+      constructor(obj, minProp, maxProp, minDif) {
+        this.obj = obj;
+        this.minProp = minProp;
+        this.maxProp = maxProp;
+        this.minDif = minDif;
+      }
+      get min() {
+        return this.obj[this.minProp];
+      }
+      set min(v) {
+        this.obj[this.minProp] = v;
+        this.obj[this.maxProp] = Math.max(this.obj[this.maxProp], v + this.minDif);
+      }
+      get max() {
+        return this.obj[this.maxProp];
+      }
+      set max(v) {
+        this.obj[this.maxProp] = v;
+        this.min = this.min;  // this will call the min setter
+      }
+    }
+
+    function updateCamera() {
+    }
+
+    class DegRadHelper { // from texture three.js documentation
+        constructor(obj, prop) {
+            this.obj = obj;
+            this.prop = prop;
+        }
+        get value() {
+            return THREE.MathUtils.radToDeg(this.obj[this.prop]);
+        }
+        set value(v) {
+            this.obj[this.prop] = THREE.MathUtils.degToRad(v);
+        }
+    }
+
+    // lights GUI:
+    function lightsGUI(gui, scene, directionalLight, directionalLightHelper, PointLight, PointLightHelper, SpotLight, SpotLightHelper, HemisphereLight ){
+        const config = {
+					spotlightRadius: 4,
+					spotlightSamples: 8,
+					dirlightRadius: 4,
+					dirlightSamples: 8
+				};
+        
+        // directional light gui
+        var lightsGUIFolder = gui.addFolder("Lights");
+        var DirectionallightsGUIFolder = lightsGUIFolder.addFolder("Directional Light");
+        DirectionallightsGUIFolder.addColor(new ColorGUIHelper(directionalLight, 'color'), 'value').name('color');
+        DirectionallightsGUIFolder.add(directionalLight, 'intensity', 0, 2, 0.01);
+        makeXYZGUI(DirectionallightsGUIFolder, directionalLight.position, 'position', updateDirectionalLight(directionalLight, directionalLightHelper));
+        makeXYZGUI(DirectionallightsGUIFolder, directionalLight.target.position, 'target', updateDirectionalLight(directionalLight, directionalLightHelper));
+        const DirectionallightsShadowFolder = DirectionallightsGUIFolder.addFolder('Shadow Camera');
+        DirectionallightsShadowFolder.open();
+        const minMaxGUIHelper1 = new MinMaxGUIHelper(directionalLight.shadow.camera, 'near', 'far', 0.1);
+        DirectionallightsShadowFolder.add(minMaxGUIHelper1, 'min', 0.1, 100, 0.2).name('near').onChange(updateCamera);
+        DirectionallightsShadowFolder.add(minMaxGUIHelper1, 'max', 0.1, 100, 0.2).name('far').onChange(updateCamera);
+        const cameraHelper = new THREE.CameraHelper( directionalLight.shadow.camera);
+        DirectionallightsShadowFolder.add( config, 'dirlightRadius' ).name( 'radius' ).min( 0 ).max( 25 ).onChange( function ( value ) {
+            directionalLight.shadow.radius = value; } );
+        DirectionallightsShadowFolder.add( config, 'dirlightSamples', 1, 25, 1 ).name( 'samples' ).onChange( function ( value ) {
+            directionalLight.shadow.blurSamples = value; } );
+
+        // point light gui
+        var PointlightsGUIFolder = lightsGUIFolder.addFolder("Point Light");
+        PointlightsGUIFolder.addColor(new ColorGUIHelper(PointLight, 'color'), 'value').name('color');
+        PointlightsGUIFolder.add(PointLight, 'intensity', 0, 2, 0.01);
+        PointlightsGUIFolder.add(PointLight, 'distance', 0, 40).onChange(updateLight(PointLight, PointLightHelper));
+        makeXYZGUI(PointlightsGUIFolder, PointLight.position, 'position', updateLight(PointLight, PointLightHelper));
+        const PointLightShadowFolder = PointlightsGUIFolder.addFolder('Shadow Camera');
+        PointLightShadowFolder.open();
+        const minMaxGUIHelper2 = new MinMaxGUIHelper(PointLight.shadow.camera, 'near', 'far', 0.1);
+        PointLightShadowFolder.add(minMaxGUIHelper2, 'min', 0.1, 100, 0.2).name('near').onChange(updateCamera);
+        PointLightShadowFolder.add(minMaxGUIHelper2, 'max', 0.1, 100, 0.2).name('far').onChange(updateCamera);
+
+        // spot light gui
+        var SpotlightsGUIFolder = lightsGUIFolder.addFolder("Spot Light");
+        SpotlightsGUIFolder.add(new DegRadHelper(SpotLight, 'angle'), 'value', 0, 90).name('angle').onChange(updateLight(SpotLight, SpotLightHelper));
+        SpotlightsGUIFolder.add(SpotLight, 'penumbra', 0, 1, 0.01);
+        SpotlightsGUIFolder.add(SpotLight, 'intensity', 0, 2, 0.01);
+        const SpotlightsShadowFolder = SpotlightsGUIFolder.addFolder('Shadow Camera');
+        SpotlightsShadowFolder.open();
+        const minMaxGUIHelper3 = new MinMaxGUIHelper(SpotLight.shadow.camera, 'near', 'far', 0.1);
+        SpotlightsShadowFolder.add(minMaxGUIHelper3, 'min', 0.1, 100, 0.2).name('near').onChange(updateCamera);
+        SpotlightsShadowFolder.add(minMaxGUIHelper3, 'max', 0.1, 100, 0.2).name('far').onChange(updateCamera);
+        SpotlightsShadowFolder.add( config, 'spotlightRadius' ).name( 'radius' ).min( 0 ).max( 25 ).onChange( function ( value ) {
+            SpotLight.shadow.radius = value; } );
+        SpotlightsShadowFolder.add( config, 'spotlightSamples', 1, 25, 1 ).name( 'samples' ).onChange( function ( value ) {
+            SpotLight.shadow.blurSamples = value; } );
+
+        // hemisphere light gui 
+        var HemispherelightsGUIFolder = lightsGUIFolder.addFolder("Hemisphere Lights");
+        HemispherelightsGUIFolder.addColor(new ColorGUIHelper(HemisphereLight, 'color'), 'value').name('skyColor');
+        HemispherelightsGUIFolder.addColor(new ColorGUIHelper(HemisphereLight, 'groundColor'), 'value').name('groundColor');
+        HemispherelightsGUIFolder.add(HemisphereLight, 'intensity', 0, 2, 0.01);
+        // const HemisphereLightShadowFolder = HemispherelightsGUIFolder.addFolder('Shadow Camera');
+        // HemisphereLightShadowFolder.open();
+        // const minMaxGUIHelper4 = new MinMaxGUIHelper(HemisphereLight.shadow.camera, 'near', 'far', 0.1);
+        // HemisphereLightShadowFolder.add(minMaxGUIHelper4, 'min', 0.1, 100, 0.2).name('near').onChange(updateCamera);
+        // HemisphereLightShadowFolder.add(minMaxGUIHelper4, 'max', 0.1, 100, 0.2).name('far').onChange(updateCamera);
+
+    }
+    lightsGUI(gui, scene, directionalLight, directionalLightHelper, PointLight, PointLightHelper, SpotLight, SpotLightHelper, HemisphereLight );
+
+    ///////////////////////////////////////////////////////////////////////////////////
+    // Exercise 4–Material properties
+    ///////////////////////////////////////////////////////////////////////////////////
+    // Material changes
+    const constants = {
+
+        combine: {
+
+            'THREE.MultiplyOperation': THREE.MultiplyOperation,
+            'THREE.MixOperation': THREE.MixOperation,
+            'THREE.AddOperation': THREE.AddOperation
+
+        },
+
+        side: {
+
+            'THREE.FrontSide': THREE.FrontSide,
+            'THREE.BackSide': THREE.BackSide,
+            'THREE.DoubleSide': THREE.DoubleSide
+
+        },
+
+        blendingMode: {
+
+            'THREE.NoBlending': THREE.NoBlending,
+            'THREE.NormalBlending': THREE.NormalBlending,
+            'THREE.AdditiveBlending': THREE.AdditiveBlending,
+            'THREE.SubtractiveBlending': THREE.SubtractiveBlending,
+            'THREE.MultiplyBlending': THREE.MultiplyBlending,
+            'THREE.CustomBlending': THREE.CustomBlending
+
+        },
+
+        equations: {
+
+            'THREE.AddEquation': THREE.AddEquation,
+            'THREE.SubtractEquation': THREE.SubtractEquation,
+            'THREE.ReverseSubtractEquation': THREE.ReverseSubtractEquation
+
+        },
+
+        destinationFactors: {
+
+            'THREE.ZeroFactor': THREE.ZeroFactor,
+            'THREE.OneFactor': THREE.OneFactor,
+            'THREE.SrcColorFactor': THREE.SrcColorFactor,
+            'THREE.OneMinusSrcColorFactor': THREE.OneMinusSrcColorFactor,
+            'THREE.SrcAlphaFactor': THREE.SrcAlphaFactor,
+            'THREE.OneMinusSrcAlphaFactor': THREE.OneMinusSrcAlphaFactor,
+            'THREE.DstAlphaFactor': THREE.DstAlphaFactor,
+            'THREE.OneMinusDstAlphaFactor': THREE.OneMinusDstAlphaFactor
+
+        },
+
+        sourceFactors: {
+
+            'THREE.DstColorFactor': THREE.DstColorFactor,
+            'THREE.OneMinusDstColorFactor': THREE.OneMinusDstColorFactor,
+            'THREE.SrcAlphaSaturateFactor': THREE.SrcAlphaSaturateFactor
+
+        }
+
+        };
+
+    function needsUpdate( material, geometry ) {
+    return function () {
+        material.side = parseInt( material.side ); //Ensure number
+        material.needsUpdate = true;
+        geometry.attributes.position.needsUpdate = true;
+        geometry.attributes.normal.needsUpdate = true;
+        geometry.attributes.color.needsUpdate = true;
+    };
+    }
+
+    function handleColorChange( color, converSRGBToLinear = false ) {
+        return function ( value ) {
+            if ( typeof value === 'string' ) {
+                value = value.replace( '#', '0x' );
+            }
+            color.setHex( value );
+            if ( converSRGBToLinear === true ) color.convertSRGBToLinear();
+        };
+    }
+
+    function guiMaterial( gui, mesh, material, geometry ) {
+        const folder = gui.addFolder( 'Material' );
+        folder.add( material, 'transparent' ).onChange( needsUpdate( material, geometry ) );
+        folder.add( material, 'opacity', 0, 1 ).step( 0.01 );
+        folder.add( material, 'depthTest' );
+        folder.add( material, 'depthWrite' );
+        folder.add( material, 'alphaTest', 0, 1 ).step( 0.01 ).onChange( needsUpdate( material, geometry ) );
+        folder.add( material, 'visible' );
+        folder.add( material, 'side', constants.side ).onChange( needsUpdate( material, geometry ) );
+    }
+
+    function getObjectsKeys( obj ) {
+        const keys = [];
+        for ( const key in obj ) {
+            if ( obj.hasOwnProperty( key ) ) {
+                keys.push( key );
+            }
+        }
+        return keys;
+    }
+
+    const textureLoader = new THREE.TextureLoader();
+    const cubeTextureLoader = new THREE.CubeTextureLoader();
+
+    const envMaps = ( function () {
+
+        const path = '../../examples/textures/cube/SwedishRoyalCastle/';
+        const format = '.jpg';
+        const urls = [
+            path + 'px' + format, path + 'nx' + format,
+            path + 'py' + format, path + 'ny' + format,
+            path + 'pz' + format, path + 'nz' + format
+        ];
+
+        const reflectionCube = cubeTextureLoader.load( urls );
+
+        const refractionCube = cubeTextureLoader.load( urls );
+        refractionCube.mapping = THREE.CubeRefractionMapping;
+
+        return {
+            none: null,
+            reflection: reflectionCube,
+            refraction: refractionCube
+        };
+
+    } )();
+
+    const diffuseMaps = ( function () {
+
+        const bricks = textureLoader.load( 'bricks-texture.jpg' );
+        bricks.wrapS = THREE.RepeatWrapping;
+        bricks.wrapT = THREE.RepeatWrapping;
+        bricks.repeat.set( 9, 1 );
+
+        return {
+            none: null,
+            bricks: bricks
+        };
+
+    } )();
+
+    const roughnessMaps = ( function () {
+
+        const bricks = textureLoader.load( '../../examples/textures/brick_roughness.jpg' );
+        bricks.wrapT = THREE.RepeatWrapping;
+        bricks.wrapS = THREE.RepeatWrapping;
+        bricks.repeat.set( 9, 1 );
+
+        return {
+            none: null,
+            bricks: bricks
+        };
+
+    } )();
+
+    const matcaps = ( function () {
+
+        return {
+            none: null,
+            porcelainWhite: textureLoader.load( '../../examples/textures/matcaps/matcap-porcelain-white.jpg' )
+        };
+
+    } )();
+
+    const alphaMaps = ( function () {
+
+        const fibers = textureLoader.load( '../../examples/textures/alphaMap.jpg' );
+        fibers.wrapT = THREE.RepeatWrapping;
+        fibers.wrapS = THREE.RepeatWrapping;
+        fibers.repeat.set( 9, 1 );
+
+        return {
+            none: null,
+            fibers: fibers
+        };
+
+    } )();
+
+    const gradientMaps = ( function () {
+
+        const threeTone = textureLoader.load( '../../examples/textures/gradientMaps/threeTone.jpg' );
+        threeTone.minFilter = THREE.NearestFilter;
+        threeTone.magFilter = THREE.NearestFilter;
+
+        const fiveTone = textureLoader.load( '../../examples/textures/gradientMaps/fiveTone.jpg' );
+        fiveTone.minFilter = THREE.NearestFilter;
+        fiveTone.magFilter = THREE.NearestFilter;
+
+        return {
+            none: null,
+            threeTone: threeTone,
+            fiveTone: fiveTone
+        };
+
+    } )();
+
+
+    const envMapKeys = getObjectsKeys( envMaps );
+    const envMapKeysPBR = envMapKeys.slice( 0, 2 );
+    const diffuseMapKeys = getObjectsKeys( diffuseMaps );
+    const roughnessMapKeys = getObjectsKeys( roughnessMaps );
+    const matcapKeys = getObjectsKeys( matcaps );
+    const alphaMapKeys = getObjectsKeys( alphaMaps );
+    const gradientMapKeys = getObjectsKeys( gradientMaps );
+    
+    function updateCombine( material ) {
+        return function ( combine ) {
+            material.combine = parseInt( combine );
+            material.needsUpdate = true;
+        };
+    }
+
+    function updateTexture( material, materialKey, textures ) {
+        return function ( key ) {
+            material[ materialKey ] = textures[ key ];
+            material.needsUpdate = true;
+        };
+    }
+
+    function guiCommonMaterials(gui, material1, material2, material3){
+        const data = {
+            color: material1.color.getHex(),
+            emissive: material1.emissive.getHex(),
+        };
+        const folder = gui.addFolder( 'Common Properties' );
+        folder.addColor( data, 'color' ).onChange(value=> { handleColorChange( material1.color, true );
+            material1.color.set(value);
+            material2.color.set(value);
+            material3.color.set(value);} );
+        folder.addColor( data, 'emissive' ).onChange(value=> { handleColorChange( material1.emissive, true );
+            material1.emissive.set(value);
+            material2.emissive.set(value);
+            material3.emissive.set(value);} );
+    }
+
+    function guiMeshPhysicalMaterial( gui, mesh, material, geometry ) {
+        const data = {
+            color: material.color.getHex(),
+            emissive: material.emissive.getHex(),
+            envMaps: envMapKeys[ 0 ],
+            map: diffuseMapKeys[ 0 ],
+            roughnessMap: roughnessMapKeys[ 0 ],
+            alphaMap: alphaMapKeys[ 0 ]
+        };
+        const folder = gui.addFolder( 'Physical Material' );
+        //folder.addColor( data, 'color' ).onChange( handleColorChange( material.color, true ) );
+        //folder.addColor( data, 'emissive' ).onChange( handleColorChange( material.emissive, true ) );
+        folder.add( material, 'roughness', 0, 1 );
+        folder.add( material, 'metalness', 0, 1 );
+        folder.add( material, 'reflectivity', 0, 1 );
+        folder.add( material, 'clearcoat', 0, 1 ).step( 0.01 );
+        folder.add( material, 'clearcoatRoughness', 0, 1 ).step( 0.01 );
+        folder.add( material, 'flatShading' ).onChange( needsUpdate( material, geometry ) );
+        folder.add( material, 'wireframe' );
+        folder.add( material, 'vertexColors' ).onChange( needsUpdate( material, geometry ) );
+        folder.add( material, 'fog' ).onChange( needsUpdate( material, geometry ) );
+        folder.add( data, 'envMaps', envMapKeysPBR ).onChange( updateTexture( material, 'envMap', envMaps ) );
+        folder.add( data, 'map', diffuseMapKeys ).onChange( updateTexture( material, 'map', diffuseMaps ) );
+        //folder.add( data, 'roughnessMap', roughnessMapKeys ).onChange( updateTexture( material, 'roughnessMap', roughnessMaps ) );
+        //folder.add( data, 'alphaMap', alphaMapKeys ).onChange( updateTexture( material, 'alphaMap', alphaMaps ) );
+    }
+
+    function guiMeshPhongMaterial( gui, mesh, material, geometry ) {
+        const data = {
+            color: material.color.getHex(),
+            emissive: material.emissive.getHex(),
+            specular: material.specular.getHex(),
+            envMaps: envMapKeys[ 0 ],
+            map: diffuseMapKeys[ 0 ],
+            alphaMap: alphaMapKeys[ 0 ]
+        };
+        const folder = gui.addFolder( 'Phong Material' );
+        //folder.addColor( data, 'color' ).onChange( handleColorChange( material.color, true ) );
+        //folder.addColor( data, 'emissive' ).onChange( handleColorChange( material.emissive, true ) );
+        folder.addColor( data, 'specular' ).onChange( handleColorChange( material.specular ) );
+        folder.add( material, 'shininess', 0, 100 );
+        folder.add( material, 'flatShading' ).onChange( needsUpdate( material, geometry ) );
+        folder.add( material, 'wireframe' );
+        folder.add( material, 'vertexColors' ).onChange( needsUpdate( material, geometry ) );
+        folder.add( material, 'fog' ).onChange( needsUpdate( material, geometry ) );
+        folder.add( data, 'envMaps', envMapKeys ).onChange( updateTexture( material, 'envMap', envMaps ) );
+        folder.add( data, 'map', diffuseMapKeys ).onChange( updateTexture( material, 'map', diffuseMaps ) );
+        //folder.add( data, 'alphaMap', alphaMapKeys ).onChange( updateTexture( material, 'alphaMap', alphaMaps ) );
+        //folder.add( material, 'combine', constants.combine ).onChange( updateCombine( material ) );
+        folder.add( material, 'reflectivity', 0, 1 );
+        folder.add( material, 'refractionRatio', 0, 1 );
+    }
+
+    function guiMeshLambertMaterial( gui, mesh, material, geometry ) {
+        const data = {
+            color: material.color.getHex(),
+            emissive: material.emissive.getHex(),
+            envMaps: envMapKeys[ 0 ],
+            map: diffuseMapKeys[ 0 ],
+            alphaMap: alphaMapKeys[ 0 ]
+        };
+        const folder = gui.addFolder( 'Lambert Material' );
+        //folder.addColor( data, 'color' ).onChange( handleColorChange( material.color, true ) );
+        //folder.addColor( data, 'emissive' ).onChange( handleColorChange( material.emissive, true ) );
+        folder.add( material, 'wireframe' );
+        folder.add( material, 'vertexColors' ).onChange( needsUpdate( material, geometry ) );
+        folder.add( material, 'fog' ).onChange( needsUpdate( material, geometry ) );
+        folder.add( data, 'envMaps', envMapKeys ).onChange( updateTexture( material, 'envMap', envMaps ) );
+        folder.add( data, 'map', diffuseMapKeys ).onChange( updateTexture( material, 'map', diffuseMaps ) );
+        //folder.add( data, 'alphaMap', alphaMapKeys ).onChange( updateTexture( material, 'alphaMap', alphaMaps ) );
+        //folder.add( material, 'combine', constants.combine ).onChange( updateCombine( material ) );
+        folder.add( material, 'reflectivity', 0, 1 );
+        folder.add( material, 'refractionRatio', 0, 1 );
+    }
+
+    const MaterialsGUIfolder = gui.addFolder( 'Materials' );
+	guiMeshLambertMaterial( MaterialsGUIfolder,  ConeMesh, ConeMaterial, ConeGeometry );
+    guiMeshPhongMaterial( MaterialsGUIfolder,  CylinderMesh, CylinderMaterial, CylinderGeometry );
+    guiMeshPhysicalMaterial( MaterialsGUIfolder, SphereMesh, SphereMaterial, SphereGeometry );
+    guiCommonMaterials(MaterialsGUIfolder, ConeMaterial, CylinderMaterial, SphereMaterial);//  here are mutual features
+
+    ///////////////////////////////////////////////////////////////////////////////////
+    // Exercise 7–VR experimentation
+    ///////////////////////////////////////////////////////////////////////////////////
+
+    // VR :
+    function onWindowResize() {
+        camera.aspect = window.innerWidth / window.innerHeight;
+        camera.updateProjectionMatrix();
+        renderer.setSize( window.innerWidth, window.innerHeight );
+    }
+    //
+    renderer.autoClear = false;
+    renderer.setPixelRatio( window.devicePixelRatio );
+    renderer.setSize( window.innerWidth, window.innerHeight );
+    document.body.appendChild( renderer.domElement );
+    window.addEventListener( 'resize', onWindowResize );
+    // //
+    const geometry = new THREE.BufferGeometry();
+    geometry.setFromPoints( [ new THREE.Vector3( 0, 0, 0 ), new THREE.Vector3( 0, 0, - 5 ) ] );
+    const controller1 = renderer.xr.getController( 0 );
+    controller1.add( new THREE.Line( geometry ) );
+    scene.add( controller1 );
+    const controller2 = renderer.xr.getController( 1 );
+    controller2.add( new THREE.Line( geometry ) );
+    scene.add( controller2 );
+    // //
+    const controllerModelFactory = new XRControllerModelFactory();
+    const controllerGrip1 = renderer.xr.getControllerGrip( 0 );
+    controllerGrip1.add( controllerModelFactory.createControllerModel( controllerGrip1 ) );
+    scene.add( controllerGrip1 );
+    const controllerGrip2 = renderer.xr.getControllerGrip( 1 );
+    controllerGrip2.add( controllerModelFactory.createControllerModel( controllerGrip2 ) );
+    scene.add( controllerGrip2 );
+    const group = new InteractiveGroup( renderer, camera );
+    scene.add( group );
+    // gui mesh - this is in order to make the gui in VR mode
+    const mesh = new HTMLMesh( gui.domElement );
+    mesh.position.x = -15;
+    mesh.position.y = 6;
+    mesh.position.z = 11;
+    mesh.rotation.y = Math.PI / 4;
+    mesh.scale.setScalar( 18 ); // be careful with the scale!
+    group.add( mesh );
+
+    function resizeRendererToDisplaySize(renderer) {
+        const canvas = renderer.domElement;
+        const width = canvas.clientWidth;
+        const height = canvas.clientHeight;
+        const needResize = canvas.width !== width || canvas.height !== height;
+        if (needResize) {
+        renderer.setSize(width, height, false);
+        }
+        return needResize;
+    }
+
+    function render(time) {
+        if (resizeRendererToDisplaySize(renderer)) {
+        const canvas = renderer.domElement;
+        camera.aspect = canvas.clientWidth / canvas.clientHeight;
+        camera.updateProjectionMatrix();
+        }
+        renderer.render(scene, camera);
+        //requestAnimationFrame(render);
+    }
+  //requestAnimationFrame(render);
+  renderer.setAnimationLoop(render);
+}
+</script>
+</html>
