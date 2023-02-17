@@ -11,6 +11,8 @@ implement these techniques.
 | [Primitives](https://shani1610.github.io/real-time-3d-visualization/primitives/) | Practical Work 1: Tasks 1 + 2
 | [Custom Geometry](https://shani1610.github.io/real-time-3d-visualization/custom_geometry/) | Practical Work 1: Task 3
 | [Cubeman](https://shani1610.github.io/real-time-3d-visualization/cubeman/) | Practical Work 1: Tasks 4 + 5
+| [CornelBox](https://shani1610.github.io/real-time-3d-visualization/cubeman/) | Practical Work 2
+| [VideoColor](https://shani1610.github.io/real-time-3d-visualization/cubeman/) | Practical Work 3: Sprint project
 
 ### Practical Work 1: Tasks 1 + 2 Primitives, Cameras and Controls
 
